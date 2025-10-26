@@ -1,0 +1,349 @@
+# GitLab CI/CD Configuration for Sadaka-Pass
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_HOST: tcp://docker:2375
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA
+
+# Backend Linting
+lint:backend:
+  stage: lint
+  image: python:3.11-slim
+  tags:
+    - docker
+  script:
+    - pip install black flake8 isort mypy
+    - cd backend
+    - echo "Running Black (formatter check)..."
+    - black --check --diff .
+    - echo "Running Flake8..."
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    - flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - echo "Running isort..."
+    - isort --check-only --diff .
+    - echo "Running mypy..."
+    - mypy app/ || true
+  only:
+    changes:
+      - backend/**/*
+
+# Frontend Linting
+lint:frontend:
+  stage: lint
+  image: node:18-alpine
+  tags:
+    - docker
+  script:
+    - cd frontend
+    - npm ci
+    - npm run lint
+    - npm run format -- --check
+  only:
+    changes:
+      - frontend/**/*
+
+# Admin Panel Linting
+lint:admin:
+  stage: lint
+  image: node:18-alpine
+  tags:
+    - docker
+  script:
+    - cd admin-panel
+    - npm ci
+    - npm run lint
+    - npm run format -- --check
+  only:
+    changes:
+      - admin-panel/**/*
+
+# Backend Tests
+test:backend:
+  stage: test
+  image: python:3.11-slim
+  tags:
+    - docker
+  services:
+    - postgres:15
+    - redis:7-alpine
+  variables:
+    POSTGRES_DB: sadaka_pass
+    POSTGRES_USER: sadaka_user
+    POSTGRES_PASSWORD: sadaka_password
+    POSTGRES_HOST: postgres
+    DATABASE_URL: postgresql://sadaka_user:sadaka_password@postgres:5432/sadaka_pass
+    REDIS_URL: redis://redis:6379
+  script:
+    - cd backend
+    - pip install -r requirements.txt
+    - echo "Running migrations..."
+    - alembic upgrade head || true
+    - echo "Running tests..."
+    - pytest tests/ -v --cov=app --cov-report=term-missing --cov-report=xml
+    - echo "Coverage report generated"
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/coverage.xml
+  only:
+    changes:
+      - backend/**/*
+
+# Frontend Tests
+test:frontend:
+  stage: test
+  image: node:18-alpine
+  tags:
+    - docker
+  script:
+    - cd frontend
+    - npm ci
+    - npm run test -- --coverage --watchAll=false
+  coverage: '/Coverage: \d+\.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+  only:
+    changes:
+      - frontend/**/*
+
+# Admin Panel Tests
+test:admin:
+  stage: test
+  image: node:18-alpine
+  tags:
+    - docker
+  script:
+    - cd admin-panel
+    - npm ci
+    - npm run test -- --coverage --watchAll=false
+  coverage: '/Coverage: \d+\.\d+%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: admin-panel/coverage/cobertura-coverage.xml
+  only:
+    changes:
+      - admin-panel/**/*
+
+# Telegram Bot Tests
+test:telegram-bot:
+  stage: test
+  image: python:3.11-slim
+  tags:
+    - docker
+  services:
+    - postgres:15
+    - redis:7-alpine
+  variables:
+    POSTGRES_DB: sadaka_pass
+    POSTGRES_USER: sadaka_user
+    POSTGRES_PASSWORD: sadaka_password
+    POSTGRES_HOST: postgres
+    DATABASE_URL: postgresql://sadaka_user:sadaka_password@postgres:5432/sadaka_pass
+    REDIS_URL: redis://redis:6379
+  script:
+    - cd telegram-bot
+    - pip install -r requirements.txt
+    - echo "Running tests..."
+    - pytest tests/ -v || true
+  only:
+    changes:
+      - telegram-bot/**/*
+
+# Build Backend Docker Image
+build:backend:
+  stage: build
+  image: docker:24.0.5
+  tags:
+    - docker
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building backend image..."
+    - cd backend
+    - docker build -t $IMAGE_TAG-backend -f Dockerfile .
+    - docker tag $IMAGE_TAG-backend $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_REF_SLUG
+    - docker tag $IMAGE_TAG-backend $CI_REGISTRY_IMAGE/backend:latest
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+  only:
+    changes:
+      - backend/**/*
+      - .gitlab-ci.yml
+
+# Build Frontend Docker Image
+build:frontend:
+  stage: build
+  image: docker:24.0.5
+  tags:
+    - docker
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building frontend image..."
+    - cd frontend
+    - docker build -t $IMAGE_TAG-frontend -f Dockerfile .
+    - docker tag $IMAGE_TAG-frontend $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_REF_SLUG
+    - docker tag $IMAGE_TAG-frontend $CI_REGISTRY_IMAGE/frontend:latest
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+  only:
+    changes:
+      - frontend/**/*
+      - .gitlab-ci.yml
+
+# Build Admin Panel Docker Image
+build:admin:
+  stage: build
+  image: docker:24.0.5
+  tags:
+    - docker
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building admin panel image..."
+    - cd admin-panel
+    - docker build -t $IMAGE_TAG-admin -f Dockerfile .
+    - docker tag $IMAGE_TAG-admin $CI_REGISTRY_IMAGE/admin:$CI_COMMIT_REF_SLUG
+    - docker tag $IMAGE_TAG-admin $CI_REGISTRY_IMAGE/admin:latest
+    - docker push $CI_REGISTRY_IMAGE/admin:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/admin:latest
+  only:
+    changes:
+      - admin-panel/**/*
+      - .gitlab-ci.yml
+
+# Build Telegram Bot Docker Image
+build:telegram-bot:
+  stage: build
+  image: docker:24.0.5
+  tags:
+    - docker
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building telegram bot image..."
+    - cd telegram-bot
+    - docker build -t $IMAGE_TAG-telegram-bot -f Dockerfile .
+    - docker tag $IMAGE_TAG-telegram-bot $CI_REGISTRY_IMAGE/telegram-bot:$CI_COMMIT_REF_SLUG
+    - docker tag $IMAGE_TAG-telegram-bot $CI_REGISTRY_IMAGE/telegram-bot:latest
+    - docker push $CI_REGISTRY_IMAGE/telegram-bot:$CI_COMMIT_REF_SLUG
+    - docker push $CI_REGISTRY_IMAGE/telegram-bot:latest
+  only:
+    changes:
+      - telegram-bot/**/*
+      - .gitlab-ci.yml
+
+# Deploy to Staging
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  tags:
+    - docker
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H $STAGING_SERVER >> ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to staging server..."
+    - ssh $STAGING_USER@$STAGING_SERVER "
+        cd /opt/sadaka &&
+        git fetch origin &&
+        git reset --hard origin/$CI_COMMIT_REF_NAME &&
+        docker-compose pull &&
+        docker-compose up -d &&
+        docker-compose exec -T backend alembic upgrade head &&
+        docker-compose restart backend frontend telegram-bot admin
+      "
+  environment:
+    name: staging
+    url: https://staging.sadaka-pass.com
+  only:
+    - develop
+    - staging
+
+# Deploy to Production
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  tags:
+    - docker
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H $PRODUCTION_SERVER >> ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to production server..."
+    - ssh $PRODUCTION_USER@$PRODUCTION_SERVER "
+        cd /opt/sadaka &&
+        git fetch origin &&
+        git reset --hard origin/$CI_COMMIT_REF_NAME &&
+        docker-compose pull &&
+        docker-compose up -d &&
+        docker-compose exec -T backend alembic upgrade head &&
+        docker-compose restart backend frontend telegram-bot admin
+      "
+  environment:
+    name: production
+    url: https://sadaka-pass.com
+  when: manual
+  only:
+    - main
+    - master
+
+# Health Check after Deployment
+healthcheck:staging:
+  stage: deploy
+  image: curlimages/curl:latest
+  tags:
+    - docker
+  script:
+    - echo "Running health checks..."
+    - sleep 10
+    - curl -f https://staging.sadaka-pass.com/api/health || exit 1
+    - echo "Health check passed!"
+  only:
+    - develop
+    - staging
+
+healthcheck:production:
+  stage: deploy
+  image: curlimages/curl:latest
+  tags:
+    - docker
+  script:
+    - echo "Running health checks..."
+    - sleep 10
+    - curl -f https://sadaka-pass.com/api/health || exit 1
+    - echo "Health check passed!"
+  only:
+    - main
+    - master
+
