@@ -3,14 +3,11 @@ FROM node:18-alpine
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей
-COPY package*.json ./
+# Копируем все файлы
+COPY . .
 
 # Устанавливаем зависимости
-RUN npm ci --only=production
-
-# Копируем исходный код
-COPY . .
+RUN npm install --legacy-peer-deps
 
 # Открываем порт
 EXPOSE 3000
