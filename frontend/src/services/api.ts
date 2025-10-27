@@ -8,6 +8,8 @@ import {
   Donation,
   DonationCreate,
   DonationInitResponse,
+  SimpleDonationRequest,
+  SimpleDonationResponse,
   Subscription,
   SubscriptionCreate,
   SubscriptionInitResponse,
@@ -126,6 +128,9 @@ export const donationApi = {
   
   refund: (donationId: number): Promise<AxiosResponse<ApiResponse>> =>
     api.post(`/api/v1/donations/${donationId}/refund`),
+  
+  createSimpleRequest: (data: SimpleDonationRequest): Promise<AxiosResponse<SimpleDonationResponse>> =>
+    api.post('/api/v1/donations/simple-request', data),
 };
 
 // Subscription API

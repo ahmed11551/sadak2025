@@ -2,11 +2,82 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from decimal import Decimal
+from datetime import datetime
 from ..core.database import get_db
 from ..models.models import Donation, User, Fund
-from ..schemas.schemas import DonationCreate, DonationUpdate, Donation as DonationSchema
+from ..schemas.schemas import (
+    DonationCreate, 
+    DonationUpdate, 
+    Donation as DonationSchema,
+    SimpleDonationRequest
+)
 
 router = APIRouter()
+
+
+@router.post("/simple-request", response_model=dict)
+async def create_simple_donation_request(
+    request: SimpleDonationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Создать простую заявку на пожертвование (без реальной оплаты)
+    
+    Сохраняет данные заявки в базе данных для дальнейшей обработки менеджерами.
+    
+    Args:
+        request: Данные заявки на пожертвование
+        db: Сессия базы данных
+        
+    Returns:
+        dict: Информация о созданной заявке
+        
+    Raises:
+        HTTPException: Если фонд не найден (при указании fund_id)
+    """
+    from ..models.models import DonationRequest
+    
+    # Валидация фонда если указан
+    if request.fund_id is not None:
+        fund = db.query(Fund).filter(Fund.id == request.fund_id).first()
+        if not fund:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Fund not found"
+            )
+    
+    # Создаем запись в базе данных
+    donation_request = DonationRequest(
+        name=request.name,
+        phone=request.phone,
+        email=request.email,
+        amount=request.amount,
+        currency=request.currency,
+        fund_id=request.fund_id,
+        purpose=request.purpose,
+        message=request.message,
+        status="pending"
+    )
+    
+    db.add(donation_request)
+    db.commit()
+    db.refresh(donation_request)
+    
+    return {
+        "success": True,
+        "message": "Заявка на пожертвование успешно отправлена",
+        "request_id": donation_request.id,
+        "data": {
+            "name": request.name,
+            "phone": request.phone,
+            "email": request.email,
+            "amount": float(request.amount),
+            "currency": request.currency,
+            "fund_id": request.fund_id,
+            "purpose": request.purpose,
+            "created_at": donation_request.created_at.isoformat() if donation_request.created_at else None
+        }
+    }
 
 
 @router.post("/init", response_model=dict)

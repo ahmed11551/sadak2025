@@ -14,7 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import telegramService from '../services/telegram';
+import telegramService from '../services/telegram.ts';
 
 const SubscriptionContainer = styled.div`
   padding: 20px 16px;
@@ -387,7 +387,7 @@ const SubscriptionPlansPage: React.FC = () => {
             >
               <PeriodName>{info.name}</PeriodName>
               <PeriodPrice>
-                {formatPrice(plans[1].prices[key as keyof typeof plans[1].prices])}
+                {formatPrice((plans[1] as any).prices[key])}
               </PeriodPrice>
               {info.discount && (
                 <PeriodDiscount>

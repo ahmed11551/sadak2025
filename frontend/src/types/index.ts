@@ -96,6 +96,34 @@ export interface DonationInitResponse {
   status: string;
 }
 
+// Simple Donation Request Types
+export interface SimpleDonationRequest {
+  name: string;
+  phone: string;
+  email?: string;
+  amount: string;
+  currency?: string;
+  fund_id?: number;
+  purpose?: string;
+  message?: string;
+}
+
+export interface SimpleDonationResponse {
+  success: boolean;
+  message: string;
+  request_id: number;
+  data: {
+    name: string;
+    phone: string;
+    email?: string;
+    amount: number;
+    currency: string;
+    fund_id?: number;
+    purpose?: string;
+    created_at: string;
+  };
+}
+
 // Subscription Types
 export interface Subscription {
   id: number;

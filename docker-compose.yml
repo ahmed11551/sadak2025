@@ -31,23 +31,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Elasticsearch
-  elasticsearch:
-    image: elasticsearch:8.11.0
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # Backend API
   backend:
     build:
@@ -58,17 +41,21 @@ services:
     environment:
       - DATABASE_URL=postgresql://sadaka_user:sadaka_password@postgres:5432/sadaka_pass
       - REDIS_URL=redis://redis:6379
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - SECRET_KEY=development-secret-key-change-in-production
+      - TELEGRAM_BOT_TOKEN=development-token
+      - TELEGRAM_WEBAPP_URL=http://localhost:3000
+      - YOOKASSA_SHOP_ID=development-shop-id
+      - YOOKASSA_SECRET_KEY=development-secret-key
+      - CLOUDPAYMENTS_PUBLIC_ID=development-public-id
+      - CLOUDPAYMENTS_API_SECRET=development-api-secret
+      - BOT_E_REPLIKA_API_URL=http://localhost:8000
+      - BOT_E_REPLIKA_API_TOKEN=development-token
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   # Frontend React App
   frontend:
@@ -79,29 +66,9 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    command: npm start
-
-  # Telegram Bot
-  telegram-bot:
-    build:
-      context: ./telegram-bot
-      dockerfile: Dockerfile
-    environment:
-      - DATABASE_URL=postgresql://sadaka_user:sadaka_password@postgres:5432/sadaka_pass
-      - REDIS_URL=redis://redis:6379
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./telegram-bot:/app
-    command: python main.py
+      - backend
 
 volumes:
   postgres_data:
   redis_data:
-  elasticsearch_data:

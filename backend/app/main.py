@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Response
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -9,11 +8,11 @@ import os
 
 from .core.config import settings
 from .core.database import get_db
-from .core.exceptions import ErrorHandlers, APIErrors
+from .core.exceptions import ErrorHandlers
 from .core.auth import create_auth_dependencies
 from .core.logging_config import setup_logging
 from .core.metrics import (
-    collector, api_metrics, business_metrics, database_metrics,
+    api_metrics, business_metrics, database_metrics,
     external_service_metrics, system_metrics, health_checker, metrics_exporter
 )
 from .middleware import (
@@ -35,7 +34,7 @@ auth_deps = create_auth_dependencies(settings.telegram_bot_token)
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.app_name,
+    title="Sadaka-Pass API",
     description="Telegram Mini App для пожертвований и расчета закята",
     version="1.0.0",
     docs_url="/api/docs",

@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field, validator
+from pydantic import Field, field_validator, ConfigDict
 from typing import Optional, List
 import os
 from pathlib import Path
@@ -14,12 +14,12 @@ class Settings(BaseSettings):
     environment: str = Field(default="production", description="Окружение")
     
     # Безопасность
-    secret_key: str = Field(..., description="Секретный ключ")
+    secret_key: str = Field(default="development-secret-key-change-in-production", description="Секретный ключ")
     access_token_expire_minutes: int = Field(default=30, description="Время жизни токена в минутах")
     algorithm: str = Field(default="HS256", description="Алгоритм шифрования")
     
     # База данных
-    database_url: str = Field(..., description="URL базы данных")
+    database_url: str = Field(default="postgresql://sadaka_user:sadaka_password@localhost:5432/sadaka_pass", description="URL базы данных")
     database_pool_size: int = Field(default=10, description="Размер пула подключений")
     database_max_overflow: int = Field(default=20, description="Максимальное переполнение пула")
     database_pool_timeout: int = Field(default=30, description="Таймаут пула подключений")
@@ -37,22 +37,22 @@ class Settings(BaseSettings):
     elasticsearch_index_prefix: str = Field(default="sadaka_pass", description="Префикс индексов")
     
     # Telegram Bot
-    telegram_bot_token: str = Field(..., description="Токен Telegram бота")
-    telegram_webapp_url: str = Field(..., description="URL Telegram WebApp")
+    telegram_bot_token: str = Field(default="development-token", description="Токен Telegram бота")
+    telegram_webapp_url: str = Field(default="http://localhost:3000", description="URL Telegram WebApp")
     telegram_webhook_url: Optional[str] = Field(default=None, description="URL webhook для Telegram")
     
     # Платежные системы
-    yookassa_shop_id: str = Field(..., description="ID магазина YooKassa")
-    yookassa_secret_key: str = Field(..., description="Секретный ключ YooKassa")
+    yookassa_shop_id: str = Field(default="development-shop-id", description="ID магазина YooKassa")
+    yookassa_secret_key: str = Field(default="development-secret-key", description="Секретный ключ YooKassa")
     yookassa_webhook_url: Optional[str] = Field(default=None, description="URL webhook для YooKassa")
     
-    cloudpayments_public_id: str = Field(..., description="Публичный ID CloudPayments")
-    cloudpayments_api_secret: str = Field(..., description="API секрет CloudPayments")
+    cloudpayments_public_id: str = Field(default="development-public-id", description="Публичный ID CloudPayments")
+    cloudpayments_api_secret: str = Field(default="development-api-secret", description="API секрет CloudPayments")
     cloudpayments_webhook_url: Optional[str] = Field(default=None, description="URL webhook для CloudPayments")
     
     # Внешние API
-    bot_e_replika_api_url: str = Field(..., description="URL API bot.e-replika.ru")
-    bot_e_replika_api_token: str = Field(..., description="Токен API bot.e-replika.ru")
+    bot_e_replika_api_url: str = Field(default="http://localhost:8000", description="URL API bot.e-replika.ru")
+    bot_e_replika_api_token: str = Field(default="development-token", description="Токен API bot.e-replika.ru")
     
     # CORS
     allowed_origins: List[str] = Field(
@@ -117,7 +117,8 @@ class Settings(BaseSettings):
     backup_schedule: str = Field(default="0 2 * * *", description="Расписание резервного копирования")
     backup_retention_days: int = Field(default=30, description="Количество дней хранения резервных копий")
     
-    @validator('environment')
+    @field_validator('environment')
+    @classmethod
     def validate_environment(cls, v):
         """Валидирует окружение"""
         allowed_envs = ['development', 'staging', 'production', 'testing']
@@ -125,7 +126,8 @@ class Settings(BaseSettings):
             raise ValueError(f'Environment must be one of: {", ".join(allowed_envs)}')
         return v
     
-    @validator('log_level')
+    @field_validator('log_level')
+    @classmethod
     def validate_log_level(cls, v):
         """Валидирует уровень логирования"""
         allowed_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
@@ -133,7 +135,8 @@ class Settings(BaseSettings):
             raise ValueError(f'Log level must be one of: {", ".join(allowed_levels)}')
         return v.upper()
     
-    @validator('log_format')
+    @field_validator('log_format')
+    @classmethod
     def validate_log_format(cls, v):
         """Валидирует формат логов"""
         allowed_formats = ['json', 'text']
@@ -141,14 +144,16 @@ class Settings(BaseSettings):
             raise ValueError(f'Log format must be one of: {", ".join(allowed_formats)}')
         return v
     
-    @validator('allowed_file_types')
+    @field_validator('allowed_file_types')
+    @classmethod
     def validate_file_types(cls, v):
         """Валидирует типы файлов"""
         if not v:
             raise ValueError('At least one file type must be allowed')
         return v
     
-    @validator('notification_channels')
+    @field_validator('notification_channels')
+    @classmethod
     def validate_notification_channels(cls, v):
         """Валидирует каналы уведомлений"""
         allowed_channels = ['email', 'telegram', 'sms', 'push']
@@ -157,76 +162,11 @@ class Settings(BaseSettings):
                 raise ValueError(f'Notification channel must be one of: {", ".join(allowed_channels)}')
         return v
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        
-        # Маппинг переменных окружения
-        fields = {
-            'app_name': {'env': 'APP_NAME'},
-            'app_version': {'env': 'APP_VERSION'},
-            'debug': {'env': 'DEBUG'},
-            'environment': {'env': 'ENVIRONMENT'},
-            'secret_key': {'env': 'SECRET_KEY'},
-            'access_token_expire_minutes': {'env': 'ACCESS_TOKEN_EXPIRE_MINUTES'},
-            'algorithm': {'env': 'ALGORITHM'},
-            'database_url': {'env': 'DATABASE_URL'},
-            'database_pool_size': {'env': 'DATABASE_POOL_SIZE'},
-            'database_max_overflow': {'env': 'DATABASE_MAX_OVERFLOW'},
-            'database_pool_timeout': {'env': 'DATABASE_POOL_TIMEOUT'},
-            'redis_url': {'env': 'REDIS_URL'},
-            'redis_password': {'env': 'REDIS_PASSWORD'},
-            'redis_db': {'env': 'REDIS_DB'},
-            'redis_max_connections': {'env': 'REDIS_MAX_CONNECTIONS'},
-            'elasticsearch_url': {'env': 'ELASTICSEARCH_URL'},
-            'elasticsearch_username': {'env': 'ELASTICSEARCH_USERNAME'},
-            'elasticsearch_password': {'env': 'ELASTICSEARCH_PASSWORD'},
-            'elasticsearch_index_prefix': {'env': 'ELASTICSEARCH_INDEX_PREFIX'},
-            'telegram_bot_token': {'env': 'TELEGRAM_BOT_TOKEN'},
-            'telegram_webapp_url': {'env': 'TELEGRAM_WEBAPP_URL'},
-            'telegram_webhook_url': {'env': 'TELEGRAM_WEBHOOK_URL'},
-            'yookassa_shop_id': {'env': 'YOOKASSA_SHOP_ID'},
-            'yookassa_secret_key': {'env': 'YOOKASSA_SECRET_KEY'},
-            'yookassa_webhook_url': {'env': 'YOOKASSA_WEBHOOK_URL'},
-            'cloudpayments_public_id': {'env': 'CLOUDPAYMENTS_PUBLIC_ID'},
-            'cloudpayments_api_secret': {'env': 'CLOUDPAYMENTS_API_SECRET'},
-            'cloudpayments_webhook_url': {'env': 'CLOUDPAYMENTS_WEBHOOK_URL'},
-            'bot_e_replika_api_url': {'env': 'BOT_E_REPLIKA_API_URL'},
-            'bot_e_replika_api_token': {'env': 'BOT_E_REPLIKA_API_TOKEN'},
-            'allowed_origins': {'env': 'ALLOWED_ORIGINS'},
-            'rate_limit_requests': {'env': 'RATE_LIMIT_REQUESTS'},
-            'rate_limit_window': {'env': 'RATE_LIMIT_WINDOW'},
-            'log_level': {'env': 'LOG_LEVEL'},
-            'log_format': {'env': 'LOG_FORMAT'},
-            'log_file': {'env': 'LOG_FILE'},
-            'enable_metrics': {'env': 'ENABLE_METRICS'},
-            'metrics_port': {'env': 'METRICS_PORT'},
-            'enable_health_checks': {'env': 'ENABLE_HEALTH_CHECKS'},
-            'max_file_size': {'env': 'MAX_FILE_SIZE'},
-            'allowed_file_types': {'env': 'ALLOWED_FILE_TYPES'},
-            'upload_dir': {'env': 'UPLOAD_DIR'},
-            'smtp_host': {'env': 'SMTP_HOST'},
-            'smtp_port': {'env': 'SMTP_PORT'},
-            'smtp_username': {'env': 'SMTP_USERNAME'},
-            'smtp_password': {'env': 'SMTP_PASSWORD'},
-            'smtp_use_tls': {'env': 'SMTP_USE_TLS'},
-            'enable_notifications': {'env': 'ENABLE_NOTIFICATIONS'},
-            'notification_channels': {'env': 'NOTIFICATION_CHANNELS'},
-            'cache_ttl_default': {'env': 'CACHE_TTL_DEFAULT'},
-            'cache_ttl_user_data': {'env': 'CACHE_TTL_USER_DATA'},
-            'cache_ttl_fund_data': {'env': 'CACHE_TTL_FUND_DATA'},
-            'cache_ttl_campaign_data': {'env': 'CACHE_TTL_CAMPAIGN_DATA'},
-            'enable_csrf_protection': {'env': 'ENABLE_CSRF_PROTECTION'},
-            'enable_xss_protection': {'env': 'ENABLE_XSS_PROTECTION'},
-            'enable_content_security_policy': {'env': 'ENABLE_CONTENT_SECURITY_POLICY'},
-            'enable_compression': {'env': 'ENABLE_COMPRESSION'},
-            'compression_min_size': {'env': 'COMPRESSION_MIN_SIZE'},
-            'enable_etag': {'env': 'ENABLE_ETAG'},
-            'backup_enabled': {'env': 'BACKUP_ENABLED'},
-            'backup_schedule': {'env': 'BACKUP_SCHEDULE'},
-            'backup_retention_days': {'env': 'BACKUP_RETENTION_DAYS'},
-        }
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+    }
 
 # Глобальный экземпляр настроек
 settings = Settings()

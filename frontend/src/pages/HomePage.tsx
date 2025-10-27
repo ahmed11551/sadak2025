@@ -12,7 +12,7 @@ import {
   Star,
   Target
 } from 'lucide-react';
-import telegramService from '../services/telegram';
+import telegramService from '../services/telegram.ts';
 
 const HomeContainer = styled.div`
   padding: 20px 16px;

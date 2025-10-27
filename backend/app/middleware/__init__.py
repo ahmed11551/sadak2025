@@ -73,8 +73,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         
-        # CSP заголовок для API
-        if request.url.path.startswith("/api/"):
+        # CSP заголовок для API (исключаем документацию)
+        if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/docs") and not request.url.path.startswith("/api/redoc"):
             response.headers["Content-Security-Policy"] = (
                 "default-src 'none'; "
                 "frame-ancestors 'none'; "

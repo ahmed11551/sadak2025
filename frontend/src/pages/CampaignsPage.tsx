@@ -15,8 +15,8 @@ import {
   FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import telegramService from '../services/telegram';
-import { campaignsApi } from '../services/api';
+import telegramService from '../services/telegram.ts';
+import { campaignsApi } from '../services/api.ts';
 
 const CampaignsContainer = styled.div`
   padding: 20px 16px;

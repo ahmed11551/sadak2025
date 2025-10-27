@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 
@@ -110,6 +110,19 @@ class Donation(DonationBase):
 
     class Config:
         from_attributes = True
+
+
+# Simple Donation Request (без реальной оплаты)
+class SimpleDonationRequest(BaseModel):
+    """Простая форма для заявки на пожертвование (без реальной оплаты)"""
+    name: str
+    phone: str
+    email: Optional[EmailStr] = None
+    amount: Decimal
+    currency: str = "RUB"
+    fund_id: Optional[int] = None
+    purpose: Optional[str] = None
+    message: Optional[str] = None
 
 
 # Subscription Schemas

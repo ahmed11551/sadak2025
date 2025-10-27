@@ -78,6 +78,28 @@ class Donation(Base):
     fund = relationship("Fund", back_populates="donations")
 
 
+class DonationRequest(Base):
+    """Заявка на пожертвование (без реальной оплаты)"""
+    __tablename__ = "donation_requests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    phone = Column(String(50), nullable=False)
+    email = Column(String(255), nullable=True)
+    amount = Column(Numeric(10, 2), nullable=False)
+    currency = Column(String(3), default="RUB")
+    fund_id = Column(Integer, ForeignKey("funds.id"), nullable=True)
+    purpose = Column(Text, nullable=True)
+    message = Column(Text, nullable=True)
+    status = Column(String(50), default="pending")  # pending, processed, rejected
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    fund = relationship("Fund")
+
+
 class Subscription(Base):
     """Подписка на регулярные пожертвования"""
     __tablename__ = "subscriptions"
