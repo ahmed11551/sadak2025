@@ -36,7 +36,7 @@ def get_main_menu() -> InlineKeyboardMarkup:
     
     builder.add(InlineKeyboardButton(
         text="🕌 Открыть Sadaka-Pass",
-        web_app=WebAppInfo(url="https://sadak2025.vercel.app")
+        web_app=WebAppInfo(url=settings.webapp_url)
     ))
     
     builder.add(InlineKeyboardButton(
