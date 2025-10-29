@@ -81,6 +81,7 @@ export interface Donation {
 }
 
 export interface DonationCreate {
+  user_id?: number;
   fund_id: number;
   amount: number;
   currency?: string;
@@ -92,7 +93,10 @@ export interface DonationInitResponse {
   donation_id: number;
   amount: number;
   currency: string;
-  payment_url: string;
+  payment_method?: string;
+  widget_url?: string;
+  widget_params?: any;
+  payment_url?: string;
   status: string;
 }
 

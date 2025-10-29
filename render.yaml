@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: sadaka-backend
+    env: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: sadaka-postgres
+        property: connectionString
+      - key: REDIS_URL
+        fromService: sadaka-redis
+        property: connectionString
+      - key: SECRET_KEY
+        value: change-me-in-render
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBAPP_URL
+        value: https://sadak2025.vercel.app
+      - key: CLOUDPAYMENTS_PUBLIC_ID
+        sync: false
+      - key: CLOUDPAYMENTS_API_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://sadak2025.vercel.app,https://sadak2025-git-main-ahmed11551s-projects.vercel.app,https://sadak2025-56wm35aeu-ahmed11551s-projects.vercel.app,https://t.me,https://web.telegram.org
+
+databases:
+  - name: sadaka-postgres
+    plan: free
+    region: frankfurt
+
+redis:
+  - name: sadaka-redis
+    plan: free
+    region: frankfurt
+
+

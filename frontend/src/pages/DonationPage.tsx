@@ -5,6 +5,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { donationApi } from '../services/api';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import TextArea from '../components/ui/TextArea';
+declare global { interface Window { cp?: any } }
 
 const PageContainer = styled.div`
   padding: 16px;
@@ -55,42 +59,7 @@ const Label = styled.label`
   color: var(--tg-text-color, #000000);
 `;
 
-const Input = styled.input`
-  padding: 12px 16px;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 16px;
-  background: var(--tg-bg-color, #ffffff);
-  color: var(--tg-text-color, #000000);
-  transition: border-color 0.2s;
 
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-  }
-
-  &:disabled {
-    background: #f8f9fa;
-    cursor: not-allowed;
-  }
-`;
-
-const TextArea = styled.textarea`
-  padding: 12px 16px;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  font-size: 16px;
-  background: var(--tg-bg-color, #ffffff);
-  color: var(--tg-text-color, #000000);
-  min-height: 100px;
-  resize: vertical;
-  transition: border-color 0.2s;
-
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-  }
-`;
 
 const AmountGrid = styled.div`
   display: grid;
@@ -114,32 +83,6 @@ const AmountButton = styled.button<{ active?: boolean }>`
   }
 `;
 
-const SubmitButton = styled.button`
-  padding: 16px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  transition: transform 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
 
 const SuccessContainer = styled.div`
   text-align: center;
@@ -229,7 +172,7 @@ const DonationPage: React.FC = () => {
     setValue('amount', amount);
   };
 
-  const onSubmit = async (data: DonationFormData) => {
+const onSubmit = async (data: DonationFormData) => {
     setIsSubmitting(true);
     
     try {
@@ -260,6 +203,53 @@ const DonationPage: React.FC = () => {
       } else {
         toast.error('Ошибка при отправке заявки. Попробуйте позже.');
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const payOnline = async (data: DonationFormData) => {
+    if (!fundId) {
+      toast.error('Не указан фонд');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const initRes = await donationApi.init({
+        user_id: 1, // TODO: заменить на реального пользователя после внедрения авторизации
+        fund_id: parseInt(fundId),
+        amount: Number(data.amount),
+        currency: 'RUB',
+        purpose: data.purpose || undefined,
+        payment_method: 'cloudpayments',
+      });
+
+      const payload = initRes.data;
+      if (payload.widget_params && window.cp?.CloudPayments) {
+        const widget = new window.cp.CloudPayments();
+        widget.pay(
+          'charge',
+          payload.widget_params,
+          {
+            onSuccess: () => {
+              toast.success('Платеж успешно создан');
+              setShowSuccess(true);
+            },
+            onFail: (reason: any) => {
+              console.error('CloudPayments fail:', reason);
+              toast.error('Платеж не выполнен');
+            }
+          }
+        );
+      } else if (payload.payment_url) {
+        window.location.href = payload.payment_url;
+      } else {
+        toast.error('Не удалось инициализировать оплату');
+      }
+    } catch (error: any) {
+      console.error('Init donation error:', error);
+      toast.error(error?.response?.data?.detail || 'Ошибка инициализации платежа');
     } finally {
       setIsSubmitting(false);
     }
@@ -383,7 +373,7 @@ const DonationPage: React.FC = () => {
           />
         </FormGroup>
 
-        <SubmitButton type="submit" disabled={isSubmitting}>
+        <Button as="button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? (
             <>Отправка...</>
           ) : (
@@ -392,7 +382,15 @@ const DonationPage: React.FC = () => {
               Отправить заявку
             </>
           )}
-        </SubmitButton>
+        </Button>
+
+        <Button
+          type="button"
+          disabled={isSubmitting || !watchAmount}
+          onClick={handleSubmit(payOnline)}
+        >
+          {isSubmitting ? 'Обработка...' : 'Оплатить онлайн (CloudPayments)'}
+        </Button>
       </FormContainer>
     </PageContainer>
   );
