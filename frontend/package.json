@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Telegram Mini App для пожертвований и расчета закята",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.42",
@@ -21,6 +24,9 @@
     "react-hot-toast": "^2.4.1",
     "lucide-react": "^0.294.0",
     "ajv": "^8.12.0"
+  },
+  "overrides": {
+    "typescript": "4.9.5"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.17.0",
