@@ -22,7 +22,7 @@ from .middleware import (
     CORSMiddleware as CustomCORSMiddleware,
     RequestValidationMiddleware
 )
-from .api import donations, subscriptions, zakat, funds, partners, users, campaigns, search
+from .api import donations, subscriptions, zakat, funds, partners, users, campaigns, search, webhooks
 
 # Настройка логирования
 debug_mode = os.getenv("DEBUG", "false").lower() == "true"
@@ -83,6 +83,7 @@ app.include_router(zakat.router, prefix="/api/v1/zakat", tags=["zakat"])
 app.include_router(partners.router, prefix="/api/v1/partners", tags=["partners"])
 app.include_router(campaigns.router, prefix="/api/v1/campaigns", tags=["campaigns"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["webhooks"])
 
 
 @app.get("/")

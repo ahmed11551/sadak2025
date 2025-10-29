@@ -4,6 +4,7 @@ from typing import List
 from decimal import Decimal
 from datetime import datetime
 from ..core.database import get_db
+from ..core.config import settings
 from ..models.models import Donation, User, Fund
 from ..schemas.schemas import (
     DonationCreate, 
@@ -11,8 +12,15 @@ from ..schemas.schemas import (
     Donation as DonationSchema,
     SimpleDonationRequest
 )
+from ..services.cloudpayments_service import CloudPaymentsService
 
 router = APIRouter()
+
+# Инициализируем сервис CloudPayments
+cloudpayments_service = CloudPaymentsService(
+    public_id=settings.cloudpayments_public_id,
+    api_secret=settings.cloudpayments_api_secret
+)
 
 
 @router.post("/simple-request", response_model=dict)
@@ -82,7 +90,11 @@ async def create_simple_donation_request(
 
 @router.post("/init", response_model=dict)
 async def init_donation(donation: DonationCreate, db: Session = Depends(get_db)):
-    """Инициализировать разовое пожертвование"""
+    """
+    Инициализировать разовое пожертвование
+    
+    Поддерживает CloudPayments для обработки платежей
+    """
     # Проверяем существование пользователя и фонда
     user = db.query(User).filter(User.id == donation.user_id).first()
     if not user:
@@ -104,8 +116,31 @@ async def init_donation(donation: DonationCreate, db: Session = Depends(get_db))
     db.commit()
     db.refresh(db_donation)
     
-    # Здесь должна быть логика создания платежа в платежной системе
-    # Пока возвращаем mock данные
+    # Если выбран CloudPayments, формируем параметры для виджета
+    if donation.payment_method == "cloudpayments":
+        description = f"Пожертвование в фонд {fund.name}"
+        if donation.purpose:
+            description += f": {donation.purpose}"
+        
+        payment_params = cloudpayments_service.create_payment_params(
+            amount=donation.amount,
+            invoice_id=str(db_donation.id),
+            description=description,
+            currency=donation.currency,
+            account_id=str(donation.user_id)
+        )
+        
+        return {
+            "donation_id": db_donation.id,
+            "amount": float(db_donation.amount),
+            "currency": db_donation.currency,
+            "payment_method": "cloudpayments",
+            "widget_params": payment_params,
+            "widget_url": cloudpayments_service.get_payment_url(),
+            "status": "pending"
+        }
+    
+    # Для других платежных систем (заглушка)
     return {
         "donation_id": db_donation.id,
         "amount": float(db_donation.amount),

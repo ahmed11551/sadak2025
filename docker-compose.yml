@@ -69,6 +69,19 @@ services:
     depends_on:
       - backend
 
+  # Telegram Bot (aiogram)
+  telegram-bot:
+    build:
+      context: ./telegram-bot
+      dockerfile: Dockerfile
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_WEBAPP_URL=${TELEGRAM_WEBAPP_URL:-http://localhost:3000}
+      - DATABASE_URL=postgresql://sadaka_user:sadaka_password@postgres:5432/sadaka_pass
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
